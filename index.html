@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="scripts/tf.min.js"></script>
+    <script src="scripts/custom_vision.js"></script>
+    <script>
+        const IMG_URL = 'images/sanchez.jpg';
+
+        async function init() {
+          const c = document.getElementById("myCanvas");
+          const ctx = c.getContext("2d");
+          var img = new Image();
+          img.src = IMG_URL;
+
+          img.addEventListener("load", function() {
+            c.width = img.width;
+            c.height = img.height;
+            ctx.drawImage(img, 0, 0);
+          }, false);
+
+          const model = await loadModel();
+          detectObject(model, ctx, img);
+        }
+    </script>
+</head>
+<body>
+    <canvas id="myCanvas" style="border:1px solid #d3d3d3;"></canvas>
+</body>
+<script>
+   init();
+</script>
+</html>
