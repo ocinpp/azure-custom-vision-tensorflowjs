@@ -1,8 +1,8 @@
-const MODEL_URL = 'web_model/tensorflowjs_model.pb';
-const WEIGHTS_URL = 'web_model/weights_manifest.json';
+const MODEL_URL = 'web_model/v2/tensorflowjs_model.pb';
+const WEIGHTS_URL = 'web_model/v2/weights_manifest.json';
 const ANCHORS = tf.tensor2d([[0.573, 0.677], [1.87, 2.06], [3.34, 5.47], [7.88, 3.53], [9.77, 9.17]]);
-const IOU_THRESHOLD = 0.12;
-const SCORE_THRESHOLD = 0.1;
+const IOU_THRESHOLD = 0.23;
+const SCORE_THRESHOLD = 0.35;
 const NORMALIZATION_OFFSET = 127.5;
 const MAX_OUTPUT_SIZE = 20;
 
@@ -23,9 +23,16 @@ function drawBox(ctx, height, width, probability, boundingBox) {
   ctx.strokeStyle = "lime";
   ctx.stroke();
 
-  ctx.font = "15pt arial";
-  ctx.fillStyle = "lime";
-  ctx.fillText(Math.round(probability * 100, 0) + '%', x, y);
+  ctx.fillStyle = "navy";
+  ctx.fillRect(x, y - 25, 85, 25);
+  // ctx.fillRect(x, y - 25, 65, 25);
+
+  ctx.font = "13pt arial";
+  ctx.fillStyle = "white";
+  ctx.fillText(Math.round(probability * 100, 0) + '%', x + 10, y - 5);
+
+  // ctx.fillText('Man Utd', x + 8, y - 5);
+
 }
 
 // resize to 416 x 416
@@ -112,6 +119,9 @@ function extractBoundingBoxes(prediction_output, anchors) {
   // https://js.tensorflow.org/api/latest/index.html#stack
   boxes = tf.stack([x,y,w,h], axis=-1).reshape([-1, 4]);
 
+  // [y1, x1, y2, x2] => top-left, right-bottom
+  boxes_corners = tf.stack([y,x,y.sub(h),x.add(w)], axis=-1).reshape([-1, 4]);
+
   // Get confidence for the bounding boxes.
   const objectness = tf.sigmoid(outputs_4);
 
@@ -131,18 +141,20 @@ function extractBoundingBoxes(prediction_output, anchors) {
   class_probs = class_probs.div(class_probs_sum.expandDims(3)).mul(objectness.expandDims(3))
   class_probs = class_probs.reshape([-1, num_class]);
 
-  return [boxes, class_probs];
+  return [boxes, boxes_corners, class_probs];
 }
 
 async function postProcess(prediction_output) {
   const output = extractBoundingBoxes(prediction_output, ANCHORS);
   const output_boxes = output[0];
-  const output_class_probs = output[1];
+  const output_boxes_corners = output[1];
+  const output_class_probs = output[2];
 
   // Performs non maximum suppression of bounding boxes based on iou (intersection over union)
   // https://js.tensorflow.org/api/0.12.5/#image.nonMaxSuppression
   // tf.image.nonMaxSuppression (boxes, scores, maxOutputSize, iouThreshold?, scoreThreshold?)
-  const res = await tf.image.nonMaxSuppressionAsync(output_boxes, output_class_probs.as1D(845), MAX_OUTPUT_SIZE, IOU_THRESHOLD, SCORE_THRESHOLD);
+  const res = await tf.image.nonMaxSuppressionAsync(output_boxes_corners, output_class_probs.as1D(845),
+                                              MAX_OUTPUT_SIZE, IOU_THRESHOLD, SCORE_THRESHOLD);
   const idx = res.dataSync();
 
   const res_box = output_boxes.gather(tf.tensor1d(idx, 'int32'));
@@ -203,5 +215,8 @@ async function detectObject(model, ctx, img) {
 
   const output = model.execute({Placeholder: imageObj});
   const result = await postProcess(output);
+
+  console.log(result);
+
   drawBoundingBoxes(ctx, img.height, img.width, result);
 }
