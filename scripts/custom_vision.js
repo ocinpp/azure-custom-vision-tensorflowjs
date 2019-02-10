@@ -1,5 +1,5 @@
-const MODEL_URL = 'web_model/tensorflowjs_model.pb';
-const WEIGHTS_URL = 'web_model/weights_manifest.json';
+const MODEL_URL = 'https://s3-ap-northeast-1.amazonaws.com/object-detect-demo-tf/tensorflowjs_model.pb';
+const WEIGHTS_URL = 'https://s3-ap-northeast-1.amazonaws.com/object-detect-demo-tf/weights_manifest.json';
 const ANCHORS = tf.tensor2d([[0.573, 0.677], [1.87, 2.06], [3.34, 5.47], [7.88, 3.53], [9.77, 9.17]]);
 const IOU_THRESHOLD = 0.23;
 const SCORE_THRESHOLD = 0.35;
