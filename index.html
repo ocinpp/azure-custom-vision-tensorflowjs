@@ -65,6 +65,12 @@
           <i class="material-icons right">camera</i>Snap
         </button>
         -->
+      <div class="row" id="loading">
+        <div id="message">Loading model...</div>
+        <div class="progress indigo darken-4">
+          <div class="indeterminate indigo accent-2"></div>
+        </div>
+      </div>  
       <div class="row" id="fileContent" style="display:none">
         <input type="file" id="fileElem" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
         <canvas id="myCanvas" style="border:1px solid #d3d3d3;"></canvas>
@@ -283,6 +289,7 @@
     // load the tensorflow model
     async function init() {
       model = await loadModel();
+      document.getElementById("loading").remove();  
     }
 
     init();
