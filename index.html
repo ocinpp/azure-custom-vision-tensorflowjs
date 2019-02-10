@@ -5,64 +5,203 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Object Detection</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <style>
       body {
         font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
+
+      .content {
+        padding: 1em 0;
+      }
+
+      .container {
+        width: 95%;
+      }
+
+      .switch label input[type=checkbox]:checked+.lever:after {
+        background-color: #ff4081;
+      }
+
+      nav .brand-logo {
+        font-size: 1.5rem;
+      }
     </style>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="scripts/tf.min.js"></script>
     <script src="scripts/custom_vision.js?v=1"></script>
+    <script src="scripts/camera.js?v=1"></script>
+    <!-- Compiled and minified JavaScript -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 </head>
 <body>
-    <div>
-      <button id="fileSelect">
-        <i class="material-icons">photo</i><span style="vertical-align:20%; font-size:2em">Photo</span>
-      </button>
-      <input type="file" id="fileElem" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
-    </div>
-    <div>
-      Photo
-    </div>
-    <canvas id="myCanvas" style="border:1px solid #d3d3d3;"></canvas>
-    <div id="fileList">
-      <p>No files selected!</p>
+    <nav>
+      <div class="nav-wrapper indigo darken-4">
+        <a href="#" class="brand-logo center">Object Detection</a>
+      </div>
+    </nav>
+    <div id="container" class="container content">
+      <div class="row">
+        <button id="localFileSelect" class="btn-small waves-effect waves-light indigo darken-4">
+          <i class="material-icons right">photo</i>TF
+        </button>
+        <button id="azureFileSelect" class="btn-small waves-effect waves-light indigo darken-4">
+          <i class="material-icons right">photo</i>Azure
+        </button>
+      </div>
+      <div class="row">
+        <button id="frontCameraSelect" class="btn-small waves-effect waves-light indigo accent-2">
+          <i class="material-icons right">camera</i>Front
+        </button>
+        <button id="backCameraSelect" class="btn-small waves-effect waves-light indigo accent-2">
+          <i class="material-icons right">camera</i>Back
+        </button>
+      </div>
+
+        <!--
+        <button id="snapSelect" class="btn waves-effect waves-light indigo darken-4">
+          <i class="material-icons right">camera</i>Snap
+        </button>
+        -->
+      <div class="row" id="fileContent" style="display:none">
+        <input type="file" id="fileElem" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
+        <canvas id="myCanvas" style="border:1px solid #d3d3d3;"></canvas>
+        <div class="row">
+          <div id="fileList">
+            <p>No files selected!</p>
+          </div>
+        </div>
+      </div>
+      <div class="row" id="camContent" style="display:none">
+        <video id="cam" autoplay="autoplay" muted="muted" style="display:none" playsinline="playsinline">Not available</video>
+        <canvas id="hiddenCanvas"></canvas>
+        <div class="row">
+          <button id="stopCameraSelect" class="btn waves-effect waves-light indigo accent-2">
+            <i class="material-icons right">stop</i>Stop
+          </button>
+        </div>
+      </div>
     </div>
 </body>
 <script>
-    const IMG_URL = 'images/mata.jpg';
+    let mediaStream = null;
+    let model = null;
+    let refreshImageHandler = null;
+
+    let apiType = "local";
+
+    const IMG_URL = "images/mata.jpg";
     const fileList = document.getElementById("fileList");
-    const maxWidth = document.body.clientWidth;
-    // let glDim = 0;
-    let model;
+    // const maxWidth = document.body.clientWidth;
+    const maxWidth = document.getElementById("container").offsetWidth;
 
-    const fileSelect = document.getElementById("fileSelect"),
-    fileElem = document.getElementById("fileElem");
+    const constraintsEnvironment = {
+      audio: false,
+      video: {
+        width: {ideal: maxWidth},
+        height: {ideal: 480},
+        facingMode: "environment"
+      }
+    };
 
-    fileSelect.addEventListener("click", function (e) {
+    const constraintsUser = {
+      audio: false,
+      video: {
+        width: {ideal: maxWidth},
+        height: {ideal: 480},
+        facingMode: "user"
+      }
+    };
+
+    const localFileSelect = document.getElementById("localFileSelect");
+    const azureFileSelect = document.getElementById("azureFileSelect");
+
+    const fileElem = document.getElementById("fileElem");
+    const fileContentElem = document.getElementById("fileContent");
+    const camContentElem = document.getElementById("camContent");
+
+    const video = document.getElementById("cam");
+    const canvas = document.getElementById("hiddenCanvas");
+    const c = document.getElementById("myCanvas");
+    const ctx = c.getContext("2d");
+
+    localFileSelect.addEventListener("click", function (e) {
+      // clear file select value
+      fileElem.value = "";
+
+      // show the content for file selection
+      camContentElem.style.display = "none";
+      fileContentElem.style.display = "block";
+
+      // switch API type
+      apiType = "local";
+
       if (fileElem) {
         fileElem.click();
       }
     }, false);
 
+    azureFileSelect.addEventListener("click", function (e) {
+      // clear file select value
+      fileElem.value = "";
+
+      // show the content for file selection
+      camContentElem.style.display = "none";
+      fileContentElem.style.display = "block";
+
+      // switch API type
+      apiType = "azure";
+
+      if (fileElem) {
+        fileElem.click();
+      }
+    }, false);
+
+    frontCameraSelect.addEventListener("click", function (e) {
+      stopCamera(mediaStream);
+      mediaStream = switchCamera(constraintsUser);
+      camContentElem.style.display = "block";
+      fileContentElem.style.display = "none";
+      refreshImageHandler = setInterval(() => takePictureAndDetectObject(), 2000);
+    }, false);
+
+    backCameraSelect.addEventListener("click", function (e) {
+      stopCamera(mediaStream);
+      mediaStream = switchCamera(constraintsEnvironment);
+      camContentElem.style.display = "block";
+      fileContentElem.style.display = "none";
+      refreshImageHandler = setInterval(() => takePictureAndDetectObject(), 2000);
+    }, false);
+
+    stopCameraSelect.addEventListener("click", function (e) {
+      stopCamera(mediaStream);
+      camContentElem.style.display = "none";
+      fileContentElem.style.display = "none";
+      clearInterval(refreshImageHandler);
+    }, false);
+
+    function takePictureAndDetectObject() {
+      let context = hiddenCanvas.getContext("2d");
+
+      const height = video.videoHeight;
+      const width = video.videoWidth;
+
+      if (width && height) {
+        hiddenCanvas.width = width;
+        hiddenCanvas.height = height;
+        context.drawImage(video, 0, 0, width, height);
+        detectObject(model, context, hiddenCanvas);
+      }
+    }
+
     function resizeAndDrawImage(c, ctx, img) {
       let canvasResizeRatio = 1;
-      // let imageResizeRatio = 1;
 
       if (img.width > maxWidth) {
         canvasResizeRatio = maxWidth / img.width;
       }
-
-      // alert(img.width);
-      // alert(img.height);
-
-      // if (img.width > img.height && img.width > glDim) {
-      //   imageResizeRatio = glDim / img.width;
-      // }
-
-      // if (img.height > img.width && img.height > glDim) {
-      //   imageResizeRatio = glDim / img.height;
-      // }
 
       c.width = img.width * canvasResizeRatio;
       c.height = img.height * canvasResizeRatio;
@@ -82,59 +221,68 @@
         const listElement = document.createElement("div");
         fileList.appendChild(listElement);
 
-        // const imgElement = document.createElement("img");
-        // imgElement.src = window.URL.createObjectURL(files[0]);
-        // imgElement.height = 60;
-        // imgElement.onload = function() {
-        //   window.URL.revokeObjectURL(this.src);
-        // }
-        // listElement.appendChild(imgElement);
+        const infoNameElement = document.createElement("div");
+        infoNameElement.innerHTML = "Name: " + files[0].name;
+        listElement.appendChild(infoNameElement);
 
-        const infoElement = document.createElement("div");
-        infoElement.innerHTML = "Name: " + files[0].name;
-        listElement.appendChild(infoElement);
+        const infoSizeElement = document.createElement("div");
+        infoSizeElement.innerHTML = "Size: " + files[0].size + " bytes";
+        listElement.appendChild(infoSizeElement);
 
-        const infoElement2 = document.createElement("div");
-        infoElement2.innerHTML = "Size: " + files[0].size + " bytes";
-        listElement.appendChild(infoElement2);
-
-        const c = document.getElementById("myCanvas");
-        const ctx = c.getContext("2d");
         var img = new Image();
         img.src = window.URL.createObjectURL(files[0]);
 
         img.addEventListener("load", function() {
-          const infoElement3 = document.createElement("div");
-          infoElement3.innerHTML = "Dimension: " + img.width + " x " + img.height;
-          listElement.appendChild(infoElement3);
+          const infoDimensionElement = document.createElement("div");
+          infoDimensionElement.innerHTML = "Dimension: " + img.width + " x " + img.height;
+          listElement.appendChild(infoDimensionElement);
 
           resizeAndDrawImage(c, ctx, img);
-          detectObject(model, ctx, img);
+
+          if (apiType === "local") {
+            // use local TensorFlow model
+            detectObject(model, ctx, img);
+          } else if (apiType === "azure") {
+            // use azure prediction API
+            // need to pass the original file to read as bytes (blob)
+            detectObjectAzure(ctx, img, files[0]);
+          }
         }, false);
       }
     }
 
+    function detectObjectAzure(ctx, img, imgFile) {
+      const azureEndPoint = "https://southcentralus.api.cognitive.microsoft.com/customvision/v2.0/Prediction/6348ce2e-ba49-4509-a42d-e5dec3b06c7b/image";
+      const key = "aa3a15b2e773489795b89d7bce626e53";
+      const threshold = 0.4;
+
+      // file reader for reading blob
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(imgFile);
+
+      // will fire "load" event after the reader finished reading the file
+      reader.addEventListener("load", function () {
+        fileContent = reader.result;
+        axios({
+          method: "POST",
+          url: azureEndPoint,
+          headers: { "Prediction-Key": key,
+                    "content-type": "application/octet-stream" },
+          data: fileContent
+          }).then(function(res) {
+            // filer the predictions above threshold and draw the bounding boxes
+            for (pred of res.data.predictions) {
+              if (pred.probability >= threshold) {
+                drawBox(ctx, img.height, img.width, pred.probability, pred.boundingBox);
+              }
+            }
+        });
+      }, false);
+    }
+
     // load the tensorflow model
     async function init() {
-      // const c = document.getElementById("myCanvas");
-      // const ctx = c.getContext("2d");
-      // var img = new Image();
-      // img.src = IMG_URL;
-
-      // img.addEventListener("load", function() {
-      //   c.width = img.width;
-      //   c.height = img.height;
-      //   ctx.drawImage(img, 0, 0);
-      // }, false);
-
-      // const c = document.createElement("canvas");
-      // const gl = c.getContext('webgl');
-      // glDim = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-      // glDim = glDim / 2;
-
       model = await loadModel();
-
-      // detectObject(model, ctx, img);
     }
 
     init();
