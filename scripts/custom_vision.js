@@ -57,15 +57,15 @@ function extractBoundingBoxes(prediction_output, anchors) {
   const num_anchor = anchors.shape[0]
   const num_class = Math.floor(channels / num_anchor) - 5
 
-  console.log("num_anchor: " + num_anchor);
-  console.log("num_class: " + num_class);
+  // console.log("num_anchor: " + num_anchor);
+  // console.log("num_class: " + num_class);
 
   // If one component of shape is the special value -1,
   // the size of that dimension is computed so that the
   // total size remains constant
   const outputs = prediction_output.reshape([height, width, num_anchor, -1]);
 
-  console.log("outputs.shape: " + outputs.shape);
+  // console.log("outputs.shape: " + outputs.shape);
 
   const conv_dims = outputs.shape.slice(0, 2);
   const conv_dims_0 = conv_dims[0] // 13
@@ -109,8 +109,8 @@ function extractBoundingBoxes(prediction_output, anchors) {
   let w = tf.exp(outputs_2).mul(anchors_0).div(tf.scalar(width));
   let h = tf.exp(outputs_3).mul(anchors_1).div(tf.scalar(height));
 
-  console.log(x.shape, y.shape, w.shape, h.shape);
-  console.log(outputs_2.shape, outputs_3.shape, anchors_0.shape, anchors_1.shape);
+  // console.log(x.shape, y.shape, w.shape, h.shape);
+  // console.log(outputs_2.shape, outputs_3.shape, anchors_0.shape, anchors_1.shape);
 
   // (x,y) in the network outputs is the center of the bounding box. Convert them to top-left.
   x = x.sub(w.div(tf.scalar(2)));
@@ -131,12 +131,12 @@ function extractBoundingBoxes(prediction_output, anchors) {
   class_probs = outputs_5;
 
   const class_probs_max = tf.max(class_probs, 3);
-  console.log(class_probs_max.shape);
+  // console.log(class_probs_max.shape);
 
   class_probs = tf.exp(class_probs.sub(class_probs_max.expandDims(3)));
 
   const class_probs_sum = tf.sum(class_probs, 3);
-  console.log(class_probs_sum.shape);
+  // console.log(class_probs_sum.shape);
 
   class_probs = class_probs.div(class_probs_sum.expandDims(3)).mul(objectness.expandDims(3))
   class_probs = class_probs.reshape([-1, num_class]);
@@ -216,7 +216,7 @@ async function detectObject(model, ctx, img) {
   const output = model.execute({Placeholder: imageObj});
   const result = await postProcess(output);
 
-  console.log(result);
+  // console.log(result);
 
   drawBoundingBoxes(ctx, img.height, img.width, result);
 }
