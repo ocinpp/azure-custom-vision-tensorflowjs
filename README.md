@@ -1,4 +1,4 @@
-# Azure Custom Vision Tensorflowjs
+# Azure Custom Vision TensorFlow.js
 
 ## Train the model with Azure Custom Vision
 
