@@ -1,5 +1,7 @@
 # Azure Custom Vision TensorFlow.js
 
+The project shows how to use a model exported from Azure Custom Vision with TensorFlow.js and run on browser.
+
 ## Train the model with Azure Custom Vision
 
 ## Convert Frozen Model to a web-friendly format
