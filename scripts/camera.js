@@ -17,7 +17,7 @@ async function stopCamera(mediaStream) {
   try {
     // stop the current video stream
     if (mediaStream != null && mediaStream.active) {
-      var tracks = mediaStream.getVideoTracks();
+      const tracks = mediaStream.getVideoTracks();
       tracks.forEach(track => {
         track.stop();
       })
